@@ -1,0 +1,186 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_ocaml//build:rules.bzl",
+     "ocaml_archive",
+     "ocaml_ns_archive",
+     "ocaml_module",
+     "ppx_executable",
+     "ppx_module",
+)
+
+DEPS_1 = [
+    "@base//lib/base",
+    "@base_quickcheck//lib/base_quickcheck",
+    "@core_kernel//lib/composition_infix",
+    "@expect_test_helpers_core//lib/expect_test_helpers_core",
+    ## not in opam:
+    # "@sexp_grammar_validation//lib/sexp_grammar_validation",
+    "//src:sexplib"
+]
+
+#############################
+####  Aggregate Targets  ####
+
+#################
+ocaml_ns_archive(  #1
+    name       = "sexplib_test",
+    # ns_name    = "sexplib_test",
+    manifest = [
+        ":Import",
+        ":Io_test",
+        ":Newlines",
+        ":Parser_test",
+        ":Path_test",
+        ":Printer_test",
+        # ":Test_bigarray_grammars",
+        ":Test_bigarrays",
+        ":Test_common",
+        ":Test_eof",
+        ":Test_sexp_of_string",
+        ":Test_sexp_with_layout"
+    ],
+)
+
+######################## Modules & Signatures ########################
+ocaml_module(
+    name          = "Io_test",
+    struct        = "io_test.ml",
+    sig           = "io_test.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Newlines",
+    struct        = "newlines.ml",
+    sig           = "newlines.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Parser_test",
+    struct        = "parser_test.ml",
+    sig           = "parser_test.mli",
+    deps          = DEPS_1 + [
+        ":Test_common"
+    ],
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Path_test",
+    struct        = "path_test.ml",
+    sig           = "path_test.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Printer_test",
+    struct        = "printer_test.ml",
+    sig           = "printer_test.mli",
+    deps          = DEPS_1 + [
+        ":Test_common"
+    ],
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+## FIXME: depends on sexp_grammar_validation, which is missing
+# ocaml_module(
+#     name          = "Test_bigarray_grammars",
+#     struct        = "test_bigarray_grammars.ml",
+#     sig           = "test_bigarray_grammars.mli",
+#     deps          = DEPS_1,
+#     ppx           = ":ppx_1.exe",
+#     ppx_args      = [], #A0
+# )
+
+ocaml_module(
+    name          = "Test_bigarrays",
+    struct        = "test_bigarrays.ml",
+    sig           = "test_bigarrays.mli",
+    deps          = DEPS_1 + [
+        ":Import"
+    ],
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Test_common",
+    struct        = "test_common.ml",
+    sig           = "test_common.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Test_eof",
+    struct        = "test_eof.ml",
+    sig           = "test_eof.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Test_sexp_of_string",
+    struct        = "test_sexp_of_string.ml",
+    sig           = "test_sexp_of_string.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Test_sexp_with_layout",
+    struct        = "test_sexp_with_layout.ml",
+    sig           = "test_sexp_with_layout.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A0
+)
+
+ocaml_module(
+    name          = "Import",
+    struct        = "import.ml",
+    deps          = DEPS_1,
+    ppx           = ":ppx_1.exe",
+    ppx_args      = [], #A1
+)
+
+
+###############
+ppx_executable(
+    name    = "ppx_1.exe",
+    main    = ":Ppx_driver",
+    prologue = [
+        "@ppx_jane//lib/ppx_jane"
+    ],
+)
+
+#############
+ppx_module(
+    name       = "Ppx_driver",
+    struct     = ":ppx_driver.ml",
+    visibility = ["//visibility:public"],
+    deps       = ["@ppxlib//lib/ppxlib"],
+)
+
+########
+genrule(
+    name = "__ppx_driver__",
+    outs = ["ppx_driver.ml"],
+    cmd = "\n".join([
+        "echo \"(* GENERATED FILE - DO NOT EDIT *)\" > \"$@\"",
+        "echo \"let () = Ppxlib.Driver.standalone ()\" >> \"$@\"",
+    ])
+)
+

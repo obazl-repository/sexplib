@@ -1,0 +1,224 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_ocaml//build:rules.bzl",
+     "ocaml_archive",
+     "ocaml_ns_archive",
+     "ocamllex",
+     "ocaml_module",
+     "ocamlyacc",
+)
+
+DEPS_1 = [
+    "@ocaml//bigarray",
+    "@parsexp//lib/parsexp",
+    "@sexplib0//lib/sexplib0"
+]
+
+#############################
+####  Aggregate Targets  ####
+
+#################
+ocaml_ns_archive(  #1
+    name       = "sexplib",
+    ns_name    = "sexplib",
+    manifest = [
+        ":Conv",
+        ":Conv_error",
+        ":Exn_magic",
+        ":Lexer",
+        ":Parser",
+        ":Parser_with_layout",
+        ":Path",
+        ":Pre_sexp",
+        ":Sexp",
+        ":Sexp_grammar",
+        ":Sexp_grammar_intf",
+        ":Sexp_intf",
+        ":Sexp_with_layout",
+        ":Src_pos",
+        ":Std",
+        ":Type",
+        ":Type_with_layout"
+    ],
+)
+
+######################## Modules & Signatures ########################
+ocaml_module(
+    name          = "Conv",
+    struct        = "conv.ml",
+    sig           = "conv.mli",
+    deps          = DEPS_1 + [
+        ":Sexp"
+    ],
+)
+
+ocaml_module(
+    name          = "Exn_magic",
+    struct        = "exn_magic.ml",
+    sig           = "exn_magic.mli",
+    deps          = DEPS_1 + [
+        ":Conv",
+        ":Sexp"
+    ],
+)
+
+ocaml_module(
+    name          = "Lexer",
+    struct        = "lexer.ml",
+    sig           = "lexer.mli",
+    deps          = DEPS_1 + [
+        ":Parser",
+        ":Parser_with_layout"
+    ],
+)
+
+ocaml_module(
+    name          = "Parser",
+    struct        = "parser.ml",
+    sig           = "parser.mli",
+    deps          = DEPS_1 + [
+        ":Type"
+    ],
+)
+
+ocaml_module(
+    name          = "Parser_with_layout",
+    struct        = "parser_with_layout.ml",
+    sig           = "parser_with_layout.mli",
+    deps          = DEPS_1 + [
+        ":Src_pos",
+        ":Type_with_layout"
+    ],
+)
+
+ocaml_module(
+    name          = "Path",
+    struct        = "path.ml",
+    sig           = "path.mli",
+    deps          = DEPS_1 + [
+        ":Sexp"
+    ],
+)
+
+ocaml_module(
+    name          = "Sexp",
+    struct        = "sexp.ml",
+    sig           = "sexp.mli",
+    deps          = DEPS_1 + [
+        ":Pre_sexp",
+        ":Sexp_with_layout",
+        ":Sexp_intf"
+    ],
+)
+
+ocaml_module(
+    name          = "Sexp_grammar",
+    struct        = "sexp_grammar.ml",
+    sig           = "sexp_grammar.mli",
+    deps          = DEPS_1 + [
+        ":Sexp_grammar_intf"
+    ],
+)
+
+ocaml_module(
+    name          = "Src_pos",
+    struct        = "src_pos.ml",
+    sig           = "src_pos.mli",
+    deps          = DEPS_1 + [
+        ":Type"
+    ],
+)
+
+ocaml_module(
+    name          = "Type_with_layout",
+    struct        = "type_with_layout.ml",
+    sig           = "type_with_layout.mli",
+    deps          = DEPS_1 + [
+        ":Src_pos",
+        ":Type"
+    ],
+)
+
+ocaml_module(
+    name          = "Conv_error",
+    struct        = "conv_error.ml",
+    deps          = DEPS_1,
+)
+
+ocaml_module(
+    name          = "Pre_sexp",
+    struct        = "pre_sexp.ml",
+    deps          = DEPS_1 + [
+        ":Lexer",
+        ":Parser",
+        ":Type"
+    ],
+)
+
+ocaml_module(
+    name          = "Sexp_grammar_intf",
+    struct        = "sexp_grammar_intf.ml",
+    deps          = DEPS_1 + [
+        ":Sexp"
+    ],
+)
+
+ocaml_module(
+    name          = "Sexp_intf",
+    struct        = "sexp_intf.ml",
+    deps          = DEPS_1 + [
+        ":Pre_sexp",
+        ":Src_pos",
+        ":Type",
+        ":Type_with_layout"
+    ],
+)
+
+ocaml_module(
+    name          = "Sexp_with_layout",
+    struct        = "sexp_with_layout.ml",
+    deps          = DEPS_1 + [
+        ":Lexer",
+        ":Parser_with_layout",
+        ":Pre_sexp",
+        ":Src_pos",
+        ":Type",
+        ":Type_with_layout"
+    ],
+)
+
+ocaml_module(
+    name          = "Std",
+    struct        = "std.ml",
+    deps          = DEPS_1 + [
+        ":Conv"
+    ],
+)
+
+ocaml_module(
+    name          = "Type",
+    struct        = "type.ml",
+    deps          = DEPS_1,
+)
+
+########################
+####  File Generators  ####
+
+##########
+ocamllex(
+    name  = "lex_Lexer",
+    src   = "lexer.mll",
+    out   = "lexer.ml",
+)
+##########
+ocamlyacc(
+    name  = "yacc_Parser_with_layout",
+    src   = "parser_with_layout.mly",
+    outs  = ["parser_with_layout.ml", "parser_with_layout.mli"]
+)
+##########
+ocamlyacc(
+    name  = "yacc_Parser",
+    src   = "parser.mly",
+    outs  = ["parser.ml", "parser.mli"]
+)

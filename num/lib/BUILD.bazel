@@ -1,0 +1,42 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@rules_ocaml//build:rules.bzl",
+     "ocaml_archive",
+     "ocaml_ns_archive",
+     "ocaml_module",
+)
+
+DEPS_1 = [
+    "@ocaml//num/core",
+    "//src:sexplib"
+]
+
+#############################
+####  Aggregate Targets  ####
+
+#################
+ocaml_ns_archive(  #1
+    name       = "sexplib_num",
+    ns_name    = "sexplib_num",
+    manifest = [
+        ":Sexplib_num_conv",
+        ":Std"
+    ],
+)
+
+######################## Modules & Signatures ########################
+ocaml_module(
+    name          = "Sexplib_num_conv",
+    struct        = "sexplib_num_conv.ml",
+    sig           = "sexplib_num_conv.mli",
+    deps          = DEPS_1,
+)
+
+ocaml_module(
+    name          = "Std",
+    struct        = "std.ml",
+    deps          = DEPS_1 + [
+        ":Sexplib_num_conv"
+    ],
+)
+
