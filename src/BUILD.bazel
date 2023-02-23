@@ -1,10 +1,10 @@
 package(default_visibility = ["//visibility:public"])
 
 load("@rules_ocaml//build:rules.bzl",
-     "ocaml_archive",
      "ocaml_ns_archive",
      "ocamllex",
      "ocaml_module",
+     "ocaml_signature",
      "ocamlyacc",
 )
 
@@ -14,11 +14,8 @@ DEPS_1 = [
     "@sexplib0//lib/sexplib0"
 ]
 
-#############################
-####  Aggregate Targets  ####
-
-#################
-ocaml_ns_archive(  #1
+############################# Aggregates #############################
+ocaml_ns_archive(
     name       = "sexplib",
     ns_name    = "sexplib",
     manifest = [
@@ -43,67 +40,123 @@ ocaml_ns_archive(  #1
 )
 
 ######################## Modules & Signatures ########################
+ocaml_signature(
+    name          = "Conv_cmi",
+    src           = "conv.mli",
+    deps          = DEPS_1 + [
+        ":Sexp_cmi"
+    ],
+)
+
 ocaml_module(
     name          = "Conv",
     struct        = "conv.ml",
-    sig           = "conv.mli",
+    sig           = ":Conv_cmi",
     deps          = DEPS_1 + [
         ":Sexp"
+    ],
+)
+
+ocaml_signature(
+    name          = "Exn_magic_cmi",
+    src           = "exn_magic.mli",
+    deps          = DEPS_1 + [
+        ":Sexp_cmi"
     ],
 )
 
 ocaml_module(
     name          = "Exn_magic",
     struct        = "exn_magic.ml",
-    sig           = "exn_magic.mli",
+    sig           = ":Exn_magic_cmi",
     deps          = DEPS_1 + [
         ":Conv",
         ":Sexp"
     ],
 )
 
+ocaml_signature(
+    name          = "Lexer_cmi",
+    src           = "lexer.mli",
+    deps          = DEPS_1 + [
+        ":Parser_cmi",
+        ":Parser_with_layout_cmi"
+    ],
+)
+
 ocaml_module(
     name          = "Lexer",
     struct        = "lexer.ml",
-    sig           = "lexer.mli",
+    sig           = ":Lexer_cmi",
     deps          = DEPS_1 + [
-        ":Parser",
-        ":Parser_with_layout"
+        ":Parser_cmi",
+        ":Parser_with_layout_cmi"
     ],
+)
+
+ocaml_signature(
+    name          = "Parser_cmi",
+    src           = "parser.mli",
+    deps          = [":Type"]
 )
 
 ocaml_module(
     name          = "Parser",
     struct        = "parser.ml",
-    sig           = "parser.mli",
+    sig           = ":Parser_cmi",
     deps          = DEPS_1 + [
         ":Type"
+    ],
+)
+
+ocaml_signature(
+    name          = "Parser_with_layout_cmi",
+    src           = "parser_with_layout.mli",
+    deps          = DEPS_1 + [
+        # ":Sexp_cmi"
+        ":Type_with_layout_cmi"
     ],
 )
 
 ocaml_module(
     name          = "Parser_with_layout",
     struct        = "parser_with_layout.ml",
-    sig           = "parser_with_layout.mli",
+    sig           = ":Parser_with_layout_cmi",
     deps          = DEPS_1 + [
         ":Src_pos",
         ":Type_with_layout"
     ],
 )
 
+ocaml_signature(
+    name          = "Path_cmi",
+    src           = "path.mli",
+    deps          = DEPS_1 + [
+        ":Sexp_cmi"
+    ],
+)
+
 ocaml_module(
     name          = "Path",
     struct        = "path.ml",
-    sig           = "path.mli",
+    sig           = ":Path_cmi",
     deps          = DEPS_1 + [
         ":Sexp"
+    ],
+)
+
+ocaml_signature(
+    name          = "Sexp_cmi",
+    src           = "sexp.mli",
+    deps          = DEPS_1 + [
+        ":Sexp_intf"
     ],
 )
 
 ocaml_module(
     name          = "Sexp",
     struct        = "sexp.ml",
-    sig           = "sexp.mli",
+    sig           = ":Sexp_cmi",
     deps          = DEPS_1 + [
         ":Pre_sexp",
         ":Sexp_with_layout",
@@ -111,30 +164,36 @@ ocaml_module(
     ],
 )
 
-ocaml_module(
-    name          = "Sexp_grammar",
-    struct        = "sexp_grammar.ml",
-    sig           = "sexp_grammar.mli",
+ocaml_signature(
+    name          = "Sexp_grammar_cmi",
+    src           = "sexp_grammar.mli",
     deps          = DEPS_1 + [
         ":Sexp_grammar_intf"
     ],
 )
 
 ocaml_module(
-    name          = "Src_pos",
-    struct        = "src_pos.ml",
-    sig           = "src_pos.mli",
+    name          = "Sexp_grammar",
+    struct        = "sexp_grammar.ml",
+    sig           = ":Sexp_grammar_cmi",
+    deps          = DEPS_1 + [
+        ":Sexp_grammar_intf"
+    ],
+)
+
+ocaml_signature(
+    name          = "Src_pos_cmi",
+    src           = "src_pos.mli",
     deps          = DEPS_1 + [
         ":Type"
     ],
 )
 
 ocaml_module(
-    name          = "Type_with_layout",
-    struct        = "type_with_layout.ml",
-    sig           = "type_with_layout.mli",
+    name          = "Src_pos",
+    struct        = "src_pos.ml",
+    sig           = ":Src_pos_cmi",
     deps          = DEPS_1 + [
-        ":Src_pos",
         ":Type"
     ],
 )
@@ -168,7 +227,7 @@ ocaml_module(
     struct        = "sexp_intf.ml",
     deps          = DEPS_1 + [
         ":Pre_sexp",
-        ":Src_pos",
+        # ":Src_pos",
         ":Type",
         ":Type_with_layout"
     ],
@@ -199,6 +258,25 @@ ocaml_module(
     name          = "Type",
     struct        = "type.ml",
     deps          = DEPS_1,
+)
+
+ocaml_signature(
+    name          = "Type_with_layout_cmi",
+    src           = "type_with_layout.mli",
+    deps          = DEPS_1 + [
+        ":Src_pos_cmi",
+        ":Type"
+    ],
+)
+
+ocaml_module(
+    name          = "Type_with_layout",
+    struct        = "type_with_layout.ml",
+    sig           = ":Type_with_layout_cmi",
+    deps          = DEPS_1 + [
+        ":Src_pos",
+        ":Type"
+    ],
 )
 
 ########################

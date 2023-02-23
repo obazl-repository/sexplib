@@ -1,21 +1,18 @@
 package(default_visibility = ["//visibility:public"])
 
 load("@rules_ocaml//build:rules.bzl",
-     "ocaml_archive",
      "ocaml_ns_archive",
      "ocaml_module",
+     "ocaml_signature",
 )
 
 DEPS_1 = [
     "@ocaml//num/core",
-    "//src:sexplib"
+    "//src/sexplib"
 ]
 
-#############################
-####  Aggregate Targets  ####
-
-#################
-ocaml_ns_archive(  #1
+############################# Aggregates #############################
+ocaml_ns_archive(
     name       = "sexplib_num",
     ns_name    = "sexplib_num",
     manifest = [
@@ -25,10 +22,16 @@ ocaml_ns_archive(  #1
 )
 
 ######################## Modules & Signatures ########################
+ocaml_signature(
+    name          = "Sexplib_num_conv_cmi",
+    src           = "sexplib_num_conv.mli",
+    deps          = DEPS_1,
+)
+
 ocaml_module(
     name          = "Sexplib_num_conv",
     struct        = "sexplib_num_conv.ml",
-    sig           = "sexplib_num_conv.mli",
+    sig           = ":Sexplib_num_conv_cmi",
     deps          = DEPS_1,
 )
 

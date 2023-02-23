@@ -1,186 +1,441 @@
 package(default_visibility = ["//visibility:public"])
 
+# See Newlines_test target below for lots of notes on ppx_expect
+
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_ocaml//build:rules.bzl",
-     "ocaml_archive",
+     "ocaml_binary",
+     "ocaml_library",
      "ocaml_ns_archive",
      "ocaml_module",
+     "ocaml_signature",
+     "ocaml_test",
      "ppx_executable",
-     "ppx_module",
 )
 
+PPX_ARGS = ["-inline-test-lib", "sexplib"]
 DEPS_1 = [
     "@base//lib/base",
     "@base_quickcheck//lib/base_quickcheck",
     "@core_kernel//lib/composition_infix",
     "@expect_test_helpers_core//lib/expect_test_helpers_core",
-    ## not in opam:
+
+    # adding //src:sexplib triggers:
+# Error: Files bazel-out/darwin-fastbuild/bin/test/__obazl/Io_test.cmx
+#        and bazel-out/darwin-fastbuild/bin/src/__obazl/sexplib.cmxa
+#        make inconsistent assumptions over interface Sexplib__Type_with_layout
+    # presumably this is because some of the opam deps also depend on sexplib, but are linked with the opam version at @sexplib//lib/sexplib.
+
+    # "//src:sexplib",
+
+    ## I can't find any trace of sexp_grammar_validation
     # "@sexp_grammar_validation//lib/sexp_grammar_validation",
-    "//src:sexplib"
 ]
 
-#############################
-####  Aggregate Targets  ####
-
-#################
-ocaml_ns_archive(  #1
-    name       = "sexplib_test",
-    # ns_name    = "sexplib_test",
-    manifest = [
-        ":Import",
+############################# Aggregates #############################
+# build_test(
+#     name       = "sexplib_test",
+#     targets  = [
+# ocaml_ns_archive(
+test_suite(
+    name     = "test",
+    tests = [
+        # ":Import_test",
         ":Io_test",
-        ":Newlines",
+        ":Newlines_test",
         ":Parser_test",
         ":Path_test",
         ":Printer_test",
-        # ":Test_bigarray_grammars",
-        ":Test_bigarrays",
-        ":Test_common",
-        ":Test_eof",
-        ":Test_sexp_of_string",
-        ":Test_sexp_with_layout"
+        ":Bigarrays_test",
+        ":Common_test",
+        ":Eof_test",
+        ":Sexp_of_string_test",
+        ":Sexp_with_layout_test"
+
+        # ":Test_bigarray_grammars", # sexp_grammar_validation dep
     ],
 )
 
 ######################## Modules & Signatures ########################
-ocaml_module(
-    name          = "Io_test",
-    struct        = "io_test.ml",
-    sig           = "io_test.mli",
+ocaml_module( # nothing to test
+    name          = "Import",
+    struct        = "import.ml",
     deps          = DEPS_1,
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+)
+
+################
+ocaml_test(
+    name = "Io_test",
+    main = ":Io_tst",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Io_test_cmi",
+    src           = "io_test.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
+)
+
+ocaml_module(
+    name          = "Io_tst",
+    struct        = "io_test.ml",
+    sig           = ":Io_test_cmi",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
+)
+
+################
+ocaml_test(
+    name = "Newlines_test",
+    main = ":Newlines",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator", # depends on:
+        # "@ppx_expect//lib/collector", # depends on @ppx_inline_test//lib/runtime-lib
+        # "@ppx_expect//lib/common",
+        # "@ppx_expect//lib/matcher", # also depends on ppx_inline_test
+
+        # for ppx_inline, "the executable containing the tests is
+        # linked with ppx_inline_test.runner.lib." (i.e. //lib/runner/lib)
+        # but //lib/runner depends on //lib/runner/lib and
+        # //lib/runtime-lib,
+        ## so they do not need to be explicitly listed.
+        ## TODO: attach this to the ppx - see below.
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"],
+    # diff_cmd = "@patdiff//bin:patdiff" # not needed?
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Newlines_cmi",
+    src           = "newlines.mli",
+    # deps          = DEPS_1,
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
 )
 
 ocaml_module(
     name          = "Newlines",
     struct        = "newlines.ml",
-    sig           = "newlines.mli",
+    sig           = ":Newlines_cmi",
     deps          = DEPS_1,
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
+)
+
+################################################################
+ocaml_test(
+    name = "Parser_test",
+    main = ":Parser_tst",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Parser_test_cmi",
+    src           = "parser_test.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
 )
 
 ocaml_module(
-    name          = "Parser_test",
+    name          = "Parser_tst",
     struct        = "parser_test.ml",
-    sig           = "parser_test.mli",
+    sig           = ":Parser_test_cmi",
     deps          = DEPS_1 + [
-        ":Test_common"
+        ":Common"
     ],
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
+)
+
+################################################################
+ocaml_test(
+    name = "Path_test",
+    main = ":Path_tst",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Path_test_cmi",
+    src           = "path_test.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
 )
 
 ocaml_module(
-    name          = "Path_test",
+    name          = "Path_tst",
     struct        = "path_test.ml",
-    sig           = "path_test.mli",
+    sig           = ":Path_test_cmi",
     deps          = DEPS_1,
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
+)
+
+################################################################
+ocaml_test(
+    name = "Printer_test",
+    main = ":Printer_tst",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Printer_test_cmi",
+    src           = "printer_test.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
 )
 
 ocaml_module(
-    name          = "Printer_test",
+    name          = "Printer_tst",
     struct        = "printer_test.ml",
-    sig           = "printer_test.mli",
+    sig           = ":Printer_test_cmi",
     deps          = DEPS_1 + [
-        ":Test_common"
+        ":Common"
     ],
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
 )
 
-## FIXME: depends on sexp_grammar_validation, which is missing
-# ocaml_module(
-#     name          = "Test_bigarray_grammars",
-#     struct        = "test_bigarray_grammars.ml",
-#     sig           = "test_bigarray_grammars.mli",
-#     deps          = DEPS_1,
-#     ppx           = ":ppx_1.exe",
-#     ppx_args      = [], #A0
-# )
+################################################################
+ocaml_test(
+    name = "Bigarray_grammars_test",
+    main = ":Bigarray_grammars",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Test_bigarray_grammars_cmi",
+    src           = "test_bigarray_grammars.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
+)
+
+# depends on sexp_grammar_validation, which I cannot find.
+ocaml_module(
+    name          = "Bigarray_grammars",
+    struct        = "test_bigarray_grammars.ml",
+    sig           = ":Test_bigarray_grammars_cmi",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
+)
+
+################################################################
+ocaml_test(
+    name = "Bigarrays_test",
+    main = ":Bigarrays",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Test_bigarrays_cmi",
+    src           = "test_bigarrays.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
+)
 
 ocaml_module(
-    name          = "Test_bigarrays",
+    name          = "Bigarrays",
     struct        = "test_bigarrays.ml",
-    sig           = "test_bigarrays.mli",
-    deps          = DEPS_1 + [
-        ":Import"
+    sig           = ":Test_bigarrays_cmi",
+    deps          = DEPS_1 + [":Import"],
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
+)
+
+################################################################
+ocaml_test(
+    name = "Common_test",
+    main = ":Common",
+    prologue = [
     ],
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Test_common_cmi",
+    src           = "test_common.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
 )
 
 ocaml_module(
-    name          = "Test_common",
+    name          = "Common",
     struct        = "test_common.ml",
-    sig           = "test_common.mli",
+    sig           = ":Test_common_cmi",
     deps          = DEPS_1,
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+)
+
+################################################################
+ocaml_test(
+    name = "Eof_test",
+    main = ":Eof",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Test_eof_cmi",
+    src           = "test_eof.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
 )
 
 ocaml_module(
-    name          = "Test_eof",
+    name          = "Eof",
     struct        = "test_eof.ml",
-    sig           = "test_eof.mli",
+    sig           = ":Test_eof_cmi",
     deps          = DEPS_1,
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
+)
+
+################################################################
+ocaml_test(
+    name = "Sexp_of_string_test",
+    main = ":Sexp_of_string",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Test_sexp_of_string_cmi",
+    src           = "test_sexp_of_string.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
 )
 
 ocaml_module(
-    name          = "Test_sexp_of_string",
+    name          = "Sexp_of_string",
     struct        = "test_sexp_of_string.ml",
-    sig           = "test_sexp_of_string.mli",
+    sig           = ":Test_sexp_of_string_cmi",
     deps          = DEPS_1,
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+    ppx_args      = [ # PPX_ARGS + [
+        "-loc-filename", "test_sexp_of_string.ml"
+    ] + PPX_ARGS
+)
+
+################################################################
+ocaml_test(
+    name = "Sexp_with_layout_test",
+    main = ":Sexp_with_layout",
+    prologue = [
+    ],
+    epilogue = [
+        "@ppx_expect//lib/evaluator",
+        "@ppx_inline_test//lib/runner",
+    ],
+    args = ["inline-test-runner", "sexplib"], # "-verbose"],
+    timeout = "short"
+)
+
+ocaml_signature(
+    name          = "Test_sexp_with_layout_cmi",
+    src           = "test_sexp_with_layout.mli",
+    deps          = DEPS_1,
+    ppx           = ":ppx.exe",
 )
 
 ocaml_module(
-    name          = "Test_sexp_with_layout",
+    name          = "Sexp_with_layout",
     struct        = "test_sexp_with_layout.ml",
-    sig           = "test_sexp_with_layout.mli",
+    sig           = ":Test_sexp_with_layout_cmi",
     deps          = DEPS_1,
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A0
+    ppx           = ":ppx.exe",
+    ppx_args      = PPX_ARGS
 )
-
-ocaml_module(
-    name          = "Import",
-    struct        = "import.ml",
-    deps          = DEPS_1,
-    ppx           = ":ppx_1.exe",
-    ppx_args      = [], #A1
-)
-
 
 ###############
 ppx_executable(
-    name    = "ppx_1.exe",
-    main    = ":Ppx_driver",
-    prologue = [
-        "@ppx_jane//lib/ppx_jane"
-    ],
-)
+    name    = "ppx.exe",
+    prologue = ["@ppx_jane//lib/ppx_jane"],
+    main    = "@ppxlib//lib/runner",
 
-#############
-ppx_module(
-    name       = "Ppx_driver",
-    struct     = ":ppx_driver.ml",
-    visibility = ["//visibility:public"],
-    deps       = ["@ppxlib//lib/ppxlib"],
-)
+    ## codeps are compile-time deps; we don't have any here.
 
-########
-genrule(
-    name = "__ppx_driver__",
-    outs = ["ppx_driver.ml"],
-    cmd = "\n".join([
-        "echo \"(* GENERATED FILE - DO NOT EDIT *)\" > \"$@\"",
-        "echo \"let () = Ppxlib.Driver.standalone ()\" >> \"$@\"",
-    ])
-)
+    ## however, ppx_expect requires that some modules be linked
+    ## whenever the transformed module is linked; otherwise the expect
+    ## machinery will not be engaged. iow these are not compile deps,
+    ## nor are they link-time deps strictly speaking, since the link
+    ## will not fail if they are omitted. rather they are "runner"
+    ## deps, for lack of a better term: the running of the injected
+    ## expect machinery depends on them.
 
+    ppx_runner = [
+        # will be linked last when modules transformed by this ppx are
+        # linked into an executable. Note that in this case, this
+        # module depends on two other pkgs that are required to engage
+        # the expect machinery: @ppx_inline_test//lib/runner/lib" and
+        # @ppx_inline_test//lib/runtime-lib. They will be pulled in
+        # automatically, by transitivity.
+
+        "@ppx_inline_test//lib/runner",
+    ]
+)
